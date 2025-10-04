@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Normalization Assistant</title>
+<style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0; padding: 0;
+        background: linear-gradient(120deg, #181c41 0%, #3a5ec9 90%);
+        min-height: 100vh;
+    }
+    .container {
+        max-width: 900px;
+        margin: 35px auto 35px auto;
+        background: #fafcfe;
+        border-radius: 20px;
+        padding: 26px 22px 34px 22px;
+        box-shadow: 0 12px 32px #0a3c8e96, 0 3px 14px #091f4248;
+        position: relative;
+    }
+    .student-info {
+        position: absolute;
+        top: 19px;
+        right: 28px;
+        background: linear-gradient(125deg,#0d8efbaa 64%,#204aa9c0 100%);
+        color: #fff;
+        padding: 17px 28px 15px 28px;
+        font-size: 1.07em;
+        border-radius: 14px;
+        box-shadow: 0 3px 17px #1460c973;
+        font-weight: 600;
+        text-align: right;
+        letter-spacing: 0.02em;
+    }
+    h2 {
+        color: #254a9c;
+        font-weight: 700;
+        margin-top: 0;
+        letter-spacing: 0.05em;
+    }
+    label {
+        font-weight: 600;
+        font-size: 1.06em;
+        color: #34467a;
+        display: block;
+        margin-bottom: 6px;
+    }
+    textarea, input[type=text] {
+        width: 100%;
+        font-size: 1.03em;
+        padding: 10px 14px;
+        border-radius: 9px;
+        border: 2px solid #6a76a6;
+        outline: none;
+        box-shadow: inset 0 1px 6px #678fc96a;
+        transition: border-color 0.22s ease;
+    }
+    textarea:focus, input[type=text]:focus {
+        border-color: #2e4db4;
+        box-shadow: inset 0 2px 13px #2c49c065;
+    }
+    button {
+        margin-top: 14px;
+        background: linear-gradient(120deg,#2b4eb5,#889ce8);
+        border: none;
+        color: white;
+        font-size: 1.1em;
+        font-weight: 700;
+        border-radius: 14px;
+        padding: 12px 28px;
+        cursor: pointer;
+        box-shadow: 0 4px 18px #a6b8fa8a;
+        transition: background 0.3s ease;
+    }
+    button:hover {
+        background: linear-gradient(120deg,#1d3997,#5e77ca);
+        box-shadow: 0 6px 23px #5274e390;
+    }
+    .output-container {
+        margin-top: 28px;
+        background: #f6f9ff;
+        border-radius: 16px;
+        padding: 18px 22px 20px 22px;
+        box-shadow: inset 0 0 26px #cedfff;
+        color: #18449a;
+        font-size: 1.07em;
+        line-height: 1.55em;
+        white-space: pre-wrap;
+        min-height: 290px;
+    }
+    .steps-list {
+        margin-top: 12px;
+        padding-left: 20px;
+    }
+    .error {
+        color: #c32222;
+        font-weight: 700;
+        margin-top: 12px;
+        font-size: 1.14em;
+    }
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="student-info">
+        Sarthak Jain<br />
+        <span style="font-size:0.97em;">SAP ID: 590014936</span><br />
+        <span style="font-size:0.96em;">Batch-1</span>
+    </div>
+
+    <h2>Normalization Assistant</h2>
+    <form id="normForm" onsubmit="return false;">
+        <label for="attributes">Enter attributes (comma separated):</label>
+        <input type="text" id="attributes" placeholder="e.g. A,B,C,D,E" autofocus />
+        <label for="fd">Enter functional dependencies (FDs), one per line (use ->):</label>
+        <textarea id="fd" rows="5" placeholder="e.g. A->B&#10;BC->D&#10;D->E"></textarea>
+        <button onclick="performNormalization()">Normalize</button>
+    </form>
+
+    <div class="output-container" id="output">
+        Enter attributes and FDs above, then click "Normalize" to see results.
+    </div>
+</div>
+
+<script>
+    function performNormalization() {
+        const outputEl = document.getElementById('output');
+        const attrsInput = document.getElementById('attributes').value.trim();
+        const fdInput = document.getElementById('fd').value.trim();
+
+        if (!attrsInput) {
+            outputEl.innerHTML = '<span class="error">Please enter some attributes.</span>';
+            return;
+        }
+        if (!fdInput) {
+            outputEl.innerHTML = '<span class="error">Please enter functional dependencies.</span>';
+            return;
+        }
+
+        const attributes = attrsInput.replace(/\s+/g, '').split(',');
+        let fdLines = fdInput.split('\n').map(line => line.trim()).filter(l => l);
+        let fds = [];
+
+        for(const line of fdLines) {
+            let parts = line.split('->');
+            if(parts.length !== 2) {
+                outputEl.innerHTML = `<span class="error">Invalid FD format: ${line}</span>`;
+                return;
+            }
+            fds.push({lhs: parts[0], rhs: parts[1]});
+        }
+
+        // Helper Functions
+        function closure(attrSet) {
+            let closureSet = new Set(attrSet.split(''));
+            let changed = true;
+            while(changed) {
+                changed = false;
+                for(let fd of fds) {
+                    let lhsSet = new Set(fd.lhs.split(''));
+                    if ([...lhsSet].every(x => closureSet.has(x))) {
+                        for (let ch of fd.rhs) {
+                            if (!closureSet.has(ch)) {
+                                closureSet.add(ch);
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+            }
+            return [...closureSet].sort().join('');
+        }
+
+        function isSuperkey(attrSet) {
+            let c = closure(attrSet);
+            return attributes.every(a => c.includes(a));
+        }
+
+        function findCandidateKeys() {
+            const keys = [];
+            // naive powerset search of attributes (can be improved)
+            function powerset(arr, prefix = '') {
+                if(prefix.length > 0) {
+                    if(isSuperkey(prefix)) {
+                        // Check minimality
+                        if(!keys.some(k => k.split('').every(ch => prefix.includes(ch) && prefix.length > k.length))) {
+                            keys.push(prefix);
+                        }
+                    }
+                }
+                for(let i=0; i<arr.length; i++) {
+                    powerset(arr.slice(i+1), prefix + arr[i]);
+                }
+            }
+            powerset(attributes);
+            return keys;
+        }
+
+        // Start output building
+        let result = '';
+
+        result += `Attributes: ${attributes.join(', ')}\n\n`;
+        result += `Functional Dependencies:\n`;
+        fds.forEach(fd => { result += `  ${fd.lhs} → ${fd.rhs}\n`; });
+        result += '\n';
+
+        // Attribute Closures Check for each attribute
+        result += 'Attribute Closures:\n';
+        attributes.forEach(a => {
+            let c = closure(a);
+            result += `  {${a}}+ = {${c}}\n`;
+        });
+        result += '\n';
+
+        // Candidate Keys
+        let candidateKeys = findCandidateKeys();
+        if (candidateKeys.length === 0) candidateKeys = ['None found'];
+        result += `Candidate Key(s): ${candidateKeys.join(', ')}\n\n`;
+
+        // Normal Forms Checks:
+        result += 'Normalization Steps:\n';
+
+        // 1NF Check (assumed all relations in 1NF for simplicity)
+        result += '  1NF: Assumed (All attributes are atomic).\n';
+
+        // 2NF Check
+        // 2NF denies partial dependencies on candidate keys (applicable if candidate key composite)
+        let partialDeps = [];
+        candidateKeys.forEach(key => {
+            if(key.length > 1) {
+                fds.forEach(fd => {
+                    if(fd.lhs.length < key.length && key.split('').every(ch => fd.lhs.includes(ch)) && !key.split('').every(ch => fd.rhs.includes(ch))) {
+                        partialDeps.push(fd);
+                    }
+                });
+            }
+        });
+        if (partialDeps.length > 0) {
+            result += '  2NF: Not satisfied due to partial dependencies:\n';
+            partialDeps.forEach(fd => {
+                result += `    Partial FD: ${fd.lhs} → ${fd.rhs}\n`;
+            });
+        } else {
+            result += '  2NF: Satisfied (No partial dependencies).\n';
+        }
+
+        // 3NF Check
+        // A relation is in 3NF if for every FD X->A, X is a superkey OR A is a prime attribute
+        // Prime attributes: part of candidate keys
+        let primeAttrs = new Set();
+        candidateKeys.forEach(key => {
+            key.split('').forEach(ch => primeAttrs.add(ch));
+        });
+
+        let violatingFDs3NF = [];
+        fds.forEach(fd => {
+            if(!isSuperkey(fd.lhs) && !fd.rhs.split('').every(a => primeAttrs.has(a))) {
+                violatingFDs3NF.push(fd);
+            }
+        });
+
+        if(violatingFDs3NF.length > 0) {
+            result += '  3NF: Not satisfied due to violations:\n';
+            violatingFDs3NF.forEach(fd => {
+                result += `    Violating FD: ${fd.lhs} → ${fd.rhs}\n`;
+            });
+        } else {
+            result += '  3NF: Satisfied (All FDs comply).\n';
+        }
+
+        // BCNF Check
+        // Every FD has lhs as superkey for BCNF
+        let violatingFDsBCNF = [];
+        fds.forEach(fd => {
+            if(!isSuperkey(fd.lhs)) {
+                violatingFDsBCNF.push(fd);
+            }
+        });
+        if(violatingFDsBCNF.length > 0) {
+            result += '  BCNF: Not satisfied due to FDs with non-superkey LHS:\n';
+            violatingFDsBCNF.forEach(fd => {
+                result += `    Violating FD: ${fd.lhs} → ${fd.rhs}\n`;
+            });
+        } else {
+            result += '  BCNF: Satisfied (Every FD LHS is a superkey).\n';
+        }
+
+        // Lossless Join & Dependency Preservation (simplified info)
+        result += '\nLossless Join & Dependency Preservation Checks:\n';
+        result += '  - Lossless join decomposition is assumed by dependency preservation and keys identified.\n';
+        result += '  - Dependency preservation requires every FD to be represented in decomposed relations.\n';
+
+        outputEl.textContent = result;
+    }
+</script>
+</body>
+</html>

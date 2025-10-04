@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Deadlock Recovery Visualizer</title>
+<style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 0;
+        background: linear-gradient(120deg, #171e38 0%, #4056a1 90%);
+        min-height: 100vh;
+        color: #eef0f9;
+    }
+    .container {
+        max-width: 1000px;
+        margin: 40px auto 50px auto;
+        background: #f5f9ff;
+        border-radius: 22px;
+        padding: 30px 22px 40px 22px;
+        box-shadow: 0 16px 48px #274896cc, 0 4px 22px #1b2a3c99;
+        position: relative;
+        color: #24304d;
+    }
+    .student-info {
+        position: absolute;
+        top: 20px;
+        right: 28px;
+        background: linear-gradient(128deg,#3a63addb 68%,#2263a7cc 100%);
+        color: #dbdde5;
+        border-radius: 14px;
+        padding: 18px 36px 16px 36px;
+        font-size: 1.07em;
+        font-weight: 600;
+        box-shadow: 0 4px 19px #19539ae3;
+        text-align: right;
+        letter-spacing: 0.02em;
+        user-select: none;
+        z-index: 1000;
+    }
+    h2 {
+        color: #3457a3;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        margin-top: 0;
+        text-shadow: 0 2px 8px #b6c6ffcc;
+    }
+    label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 8px;
+        font-size: 1.05em;
+        color: #445681dd;
+    }
+    input[type=text], select {
+        width: 100%;
+        padding: 12px 15px;
+        font-size: 1.03em;
+        border-radius: 12px;
+        border: 2px solid #899ede80;
+        outline: none;
+        transition: border-color 0.2s ease;
+        box-shadow: inset 0 1px 5px #7997ca99;
+        margin-bottom: 18px;
+        color: #2c3557;
+    }
+    input[type=text]:focus, select:focus {
+        border-color: #4868d1cc;
+        box-shadow: inset 0 2px 12px #3456a7cc;
+        background: #f6f9ff;
+    }
+    button {
+        background: linear-gradient(125deg,#4a67da,#a2afff);
+        border: none;
+        color: #1a1e3b;
+        font-weight: 700;
+        font-size: 1.1em;
+        border-radius: 14px;
+        padding: 13px 28px;
+        cursor: pointer;
+        box-shadow: 0 4px 20px #677bab66;
+        transition: background 0.3s ease;
+        user-select: none;
+        margin-bottom: 24px;
+        display: inline-block;
+    }
+    button:hover {
+        background: linear-gradient(135deg,#2d42b3,#5c73e4);
+        box-shadow: 0 6px 24px #425cd195;
+    }
+    .graph-container {
+        margin-top: 10px;
+        border-radius: 16px;
+        background: #d9e2ff;
+        box-shadow: inset 0 0 20px #94a5dfcc;
+        border: 1.5px solid #6e82d4cc;
+        min-height: 420px;
+        position: relative;
+        padding: 18px 12px 30px 12px;
+        color: #2a3077;
+        overflow: auto;
+    }
+    .node {
+        cursor: pointer;
+        user-select: none;
+        font-weight: 600;
+        border-radius: 50%;
+        padding: 9px 13px;
+        box-sizing: border-box;
+        color: white;
+        text-align: center;
+        box-shadow: 0 3px 14px #6676cf55;
+        transition: background 0.3s ease, box-shadow 0.3s ease;
+        font-size: 0.9em;
+    }
+    .process-node {
+        background: linear-gradient(135deg,#4169f9,#3f7fe8);
+        border: 2.8px solid #113e8c;
+        width: 70px;
+        height: 70px;
+        line-height: 70px;
+    }
+    .resource-node {
+        background: linear-gradient(135deg,#7cd79c,#4dbd78);
+        border: 2.8px solid #2b6c3f;
+        width: 70px;
+        height: 70px;
+        line-height: 70px;
+    }
+    .edge {
+        stroke: #5069d2cc;
+        stroke-width: 3.2px;
+        marker-end: url(#arrowhead);
+        transition: stroke 0.3s ease;
+    }
+    .highlight-edge {
+        stroke: #df5277cc !important;
+        stroke-width: 4.5px !important;
+    }
+    .highlight-node {
+        box-shadow: 0 0 26px 4px #df5277bb !important;
+    }
+    #controls {
+        margin-bottom: 22px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 21px;
+        justify-content: center;
+    }
+    #controls > div {
+        max-width: 280px;
+        flex-grow: 1;
+    }
+    .label-small {
+        font-weight: 600;
+        font-size: 0.9em;
+        color: #394a80cc;
+    }
+    .message-box {
+        padding: 16px 18px;
+        margin-top: 18px;
+        border-radius: 16px;
+        background: #fbeae8;
+        box-shadow: 0 0 12px #d0524dbb;
+        color: #d04d42;
+        font-weight: 600;
+        font-size: 1em;
+        text-align: center;
+        user-select: none;
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <div class="student-info">
+        Sarthak Jain<br />
+        <span style="font-size:0.96em;">SAP ID: 590014936</span><br />
+        <span style="font-size:0.95em;">Batch-1</span>
+    </div>
+
+    <h2>Deadlock Recovery Visualizer</h2>
+
+    <div id="controls">
+        <div>
+            <label for="processInput">Add Process (name):</label>
+            <input type="text" id="processInput" placeholder="e.g. P1" />
+            <button onclick="addProcess()">Add Process</button>
+        </div>
+        <div>
+            <label for="resourceInput">Add Resource (name):</label>
+            <input type="text" id="resourceInput" placeholder="e.g. R1" />
+            <button onclick="addResource()">Add Resource</button>
+        </div>
+    </div>
+
+    <div id="controls" style="margin-top: 0;">
+        <div>
+            <label for="allocateProcess">Allocate Resource:</label>
+            <select id="allocateProcess"></select>
+            <select id="allocateResource"></select>
+            <button onclick="allocateResource()">Allocate</button>
+        </div>
+        <div>
+            <label for="requestProcess">Request Resource:</label>
+            <select id="requestProcess"></select>
+            <select id="requestResource"></select>
+            <button onclick="requestResource()">Request</button>
+        </div>
+    </div>
+
+    <div class="message-box" id="messageBox">Add processes and resources, then allocate/request them here.</div>
+
+    <svg id="graph" class="graph-container" width="960" height="420">
+        <defs>
+            <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto" markerUnits="strokeWidth">
+                <path d="M0,0 L6,3 L0,6" fill="#5069d2cc" />
+            </marker>
+        </defs>
+    </svg>
+</div>
+
+<script>
+const processes = [];
+const resources = [];
+const allocations = []; // {process, resource}
+const requests = []; // {process, resource}
+
+const svg = document.getElementById('graph');
+const width = svg.clientWidth;
+const height = svg.clientHeight;
+
+function updateSelectOptions() {
+    const allocProc = document.getElementById('allocateProcess');
+    const allocRes = document.getElementById('allocateResource');
+    const reqProc = document.getElementById('requestProcess');
+    const reqRes = document.getElementById('requestResource');
+
+    allocProc.innerHTML = '';
+    reqProc.innerHTML = '';
+    allocRes.innerHTML = '';
+    reqRes.innerHTML = '';
+
+    processes.forEach(p => {
+        let option1 = document.createElement('option');
+        option1.value = p; option1.textContent = p;
+        allocProc.appendChild(option1);
+        let option2 = document.createElement('option');
+        option2.value = p; option2.textContent = p;
+        reqProc.appendChild(option2);
+    });
+
+    resources.forEach(r => {
+        let option1 = document.createElement('option');
+        option1.value = r; option1.textContent = r;
+        allocRes.appendChild(option1);
+        let option2 = document.createElement('option');
+        option2.value = r; option2.textContent = r;
+        reqRes.appendChild(option2);
+    });
+}
+
+function addProcess() {
+    let input = document.getElementById('processInput');
+    const val = input.value.trim();
+    if(val === '') return showMessage('Process name cannot be empty.');
+    if(processes.includes(val)) return showMessage('Process "' + val + '" already exists.');
+    processes.push(val);
+    input.value = '';
+    updateSelectOptions();
+    updateGraph();
+    showMessage('Process "'+val+'" added.');
+}
+
+function addResource() {
+    let input = document.getElementById('resourceInput');
+    const val = input.value.trim();
+    if(val === '') return showMessage('Resource name cannot be empty.');
+    if(resources.includes(val)) return showMessage('Resource "' + val + '" already exists.');
+    resources.push(val);
+    input.value = '';
+    updateSelectOptions();
+    updateGraph();
+    showMessage('Resource "'+val+'" added.');
+}
+
+function allocateResource() {
+    const proc = document.getElementById('allocateProcess').value;
+    const res = document.getElementById('allocateResource').value;
+    if(!proc || !res) return;
+    // Check if already allocated
+    if(allocations.find(a => a.process === proc && a.resource === res))
+        return showMessage(`Resource ${res} is already allocated to Process ${proc}.`);
+    if(requests.find(r => r.process === proc && r.resource === res))
+        requests.splice(requests.findIndex(r => r.process === proc && r.resource === res), 1); // Remove from request if allocated
+    allocations.push({process: proc, resource: res});
+    updateGraph();
+    showMessage(`Resource ${res} allocated to Process ${proc}.`);
+}
+
+function requestResource() {
+    const proc = document.getElementById('requestProcess').value;
+    const res = document.getElementById('requestResource').value;
+    if(!proc || !res) return;
+    // Check if already requested or allocated
+    if(requests.find(r => r.process === proc && r.resource === res))
+        return showMessage(`Process ${proc} has already requested Resource ${res}.`);
+    if(allocations.find(a => a.process === proc && a.resource === res))
+        return showMessage(`Resource ${res} is already allocated to Process ${proc}.`);
+    requests.push({process: proc, resource: res});
+    updateGraph();
+    showMessage(`Process ${proc} requested Resource ${res}.`);
+}
+
+function showMessage(msg) {
+    const box = document.getElementById('messageBox');
+    box.textContent = msg;
+}
+
+function clearSVG() {
+    while (svg.firstChild && svg.firstChild.tagName !== 'defs') {
+        svg.removeChild(svg.firstChild);
+    }
+}
+
+function drawEdge(x1, y1, x2, y2, highlight=false) {
+    let line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1', x1);
+    line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2);
+    line.setAttribute('y2', y2);
+    line.setAttribute('class', 'edge');
+    if (highlight) {
+        line.classList.add('highlight-edge');
+    }
+    line.setAttribute('marker-end', 'url(#arrowhead)');
+    svg.appendChild(line);
+}
+
+function drawNode(cx, cy, text, type='process', highlight=false) {
+    let g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    let circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    circle.setAttribute('cx', cx);
+    circle.setAttribute('cy', cy);
+    circle.setAttribute('r', 32);
+    circle.setAttribute('fill', type==='process' ? '#4169f9' : '#66cc66');
+    circle.setAttribute('stroke', type==='process' ? '#113e8c' : '#2b6c3f');
+    circle.setAttribute('stroke-width', '3');
+    if(highlight) circle.setAttribute('filter','url(#glow)');
+    g.appendChild(circle);
+
+    let txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+    txt.setAttribute('x', cx);
+    txt.setAttribute('y', cy+6);
+    txt.setAttribute('text-anchor','middle');
+    txt.setAttribute('font-weight','700');
+    txt.setAttribute('font-size','16px');
+    txt.setAttribute('fill', 'white');
+    txt.textContent = text;
+    g.appendChild(txt);
+
+    svg.appendChild(g);
+}
+
+// Banker's Algorithm implementation
+function bankersAlgorithm() {
+    // Inputs:
+    // Processes, Resources
+    // allocations: resource assigned to process (like allocation matrix)
+    // requests: resource request edges
+
+    // Find safe sequence if exists
+    // Algorithm steps:
+    // 1. Work = Available = total resources - allocated
+    // 2. Finish[n] = false
+    // 3. Find a process whose requests are <= Work and not finished
+    // 4. Mark it finished and add allocated resources to Work
+    // 5. Repeat until all finished or cannot proceed
+
+    // For simplicity, assume resources are single instance each in this visualizer
+
+    let available = {};
+    resources.forEach(r => {
+        // total 1 instance each
+        let total = 1;
+        let allocatedCount = allocations.filter(a => a.resource === r).length;
+        available[r] = total - allocatedCount;
+    });
+
+    // Build request matrix: map process to requested resources
+    let requestMap = {};
+    processes.forEach(p => {
+        requestMap[p] = [];
+    });
+    requests.forEach(req => {
+        if(requestMap[req.process]) requestMap[req.process].push(req.resource);
+    });
+
+    let finish = {};
+    processes.forEach(p => finish[p] = false);
+
+    let safeSequence = [];
+
+    let madeProgress;
+    do {
+        madeProgress = false;
+        for(let p of processes) {
+            if(!finish[p]) {
+                // Check if all requested resources are available
+                let canAllocate = requestMap[p].every(r => (available[r] !== undefined && available[r] > 0));
+                if(canAllocate) {
+                    // Simulate resource release after processing
+                    requestMap[p].forEach(r => {
+                        available[r] -= 1;
+                    });
+                    // Return allocated resources now that process finishes
+                    allocations.filter(a => a.process === p).forEach(a => {
+                        available[a.resource] +=1;
+                    });
+                    finish[p] = true;
+                    safeSequence.push(p);
+                    madeProgress = true;
+                }
+            }
+        }
+    } while(madeProgress);
+
+    let deadlockProcs = processes.filter(p => !finish[p]);
+
+    return {safeSequence, deadlockProcs};
+}
+
+function findDeadlockCycle() {
+    // Detect cycle in wait-for graph from requests and allocations
+    // Build wait-for graph: Process points to Process if waiting for some resource held by that process
+
+    // Map resource held by whom:
+    let resourceHolder = {};
+    allocations.forEach(a => {
+        resourceHolder[a.resource] = a.process;
+    });
+
+    // Build adjacency list for wait-for graph:
+    let adj = {};
+    processes.forEach(p => adj[p] = []);
+    requests.forEach(rq => {
+        let holder = resourceHolder[rq.resource];
+        if(holder && holder !== rq.process) {
+            adj[rq.process].push(holder);
+        }
+    });
+
+    let visited = new Set(), recStack = new Set();
+
+    function dfs(node) {
+        if(!visited.has(node)) {
+            visited.add(node);
+            recStack.add(node);
+
+            for(let neigh of adj[node]) {
+                if(!visited.has(neigh) && dfs(neigh)) {
+                    return true;
+                } else if(recStack.has(neigh)) return true;
+            }
+        }
+        recStack.delete(node);
+        return false;
+    }
+
+    // Finding nodes involved in cycle for highlighting
+    let cycleNodes = new Set();
+
+    for(let p of processes) {
+        visited.clear();
+        recStack.clear();
+        function dfsCycle(v) {
+            visited.add(v);
+            recStack.add(v);
+            for(let nxt of adj[v]) {
+                if(!visited.has(nxt)) {
+                    if(dfsCycle(nxt)) {
+                        cycleNodes.add(nxt);
+                        cycleNodes.add(v);
+                        return true;
+                    }
+                } else if(recStack.has(nxt)) {
+                    cycleNodes.add(nxt);
+                    cycleNodes.add(v);
+                    return true;
+                }
+            }
+            recStack.delete(v);
+            return false;
+        }
+
+        if(dfsCycle(p)) {
+            break;
+        }
+    }
+    return Array.from(cycleNodes);
+}
+
+function updateGraph() {
+    clearSVG();
+
+    const radius = 75;
+    const procY = height * 0.35;
+    const resY = height * 0.75;
+    const procGap = width / (processes.length + 1);
+    const resGap = width / (resources.length + 1);
+
+    // Draw processes
+    const procPositions = {};
+    processes.forEach((p, i) => {
+        let cx = procGap * (i + 1);
+        procPositions[p] = {cx, cy: procY};
+        drawNode(cx, procY, p, 'process');
+    });
+
+    // Draw resources
+    const resPositions = {};
+    resources.forEach((r, i) => {
+        let cx = resGap * (i + 1);
+        resPositions[r] = {cx, cy: resY};
+        drawNode(cx, resY, r, 'resource');
+    });
+
+    // Draw edges allocations: resource --> process
+    allocations.forEach(({process, resource}) => {
+        let from = resPositions[resource];
+        let to = procPositions[process];
+        if(from && to) {
+            drawEdge(from.cx, from.cy - 32, to.cx, to.cy + 32);
+        }
+    });
+
+    // Draw edges requests: process --> resource
+    requests.forEach(({process, resource}) => {
+        let from = procPositions[process];
+        let to = resPositions[resource];
+        if(from && to) {
+            drawEdge(from.cx, from.cy + 32, to.cx, to.cy - 32);
+        }
+    });
+
+    // Banker's Algorithm result
+    const {safeSequence, deadlockProcs} = bankersAlgorithm();
+
+    // Highlight deadlock cycle if any
+    const deadlockCycle = findDeadlockCycle();
+
+    let nodes = svg.querySelectorAll('g');
+    nodes.forEach(n => {
+        const textEl = n.querySelector('text');
+        if(textEl) {
+            const name = textEl.textContent;
+            if(deadlockCycle.includes(name)) {
+                const circle = n.querySelector('circle');
+                circle.setAttribute('fill', '#d94666');
+                circle.setAttribute('stroke', '#7f1d1d');
+                circle.setAttribute('filter', null);
+            }
+        }
+    });
+
+    let edges = svg.querySelectorAll('line');
+    edges.forEach(e => { e.classList.remove('highlight-edge'); });
+
+    // Highlight edges related to deadlock processes
+    if(deadlockCycle.length > 0) {
+        // Highlight edges outgoing from deadlock nodes
+        edges.forEach(e => {
+            // Approximate by positions of endpoints
+            const x1 = +e.getAttribute('x1');
+            const y1 = +e.getAttribute('y1');
+            const x2 = +e.getAttribute('x2');
+            const y2 = +e.getAttribute('y2');
+
+            // Find node names near points
+            let fromNode = null, toNode = null;
+            nodes.forEach(n => {
+                const cx = +n.querySelector('circle').getAttribute('cx');
+                const cy = +n.querySelector('circle').getAttribute('cy');
+                const text = n.querySelector('text').textContent;
+                if(Math.abs(cx - x1) < 7 && Math.abs(cy - y1) < 7) fromNode = text;
+                if(Math.abs(cx - x2) < 7 && Math.abs(cy - y2) < 7) toNode = text;
+            });
+
+            if(fromNode && toNode && deadlockCycle.includes(fromNode) && deadlockCycle.includes(toNode)) {
+                e.classList.add('highlight-edge');
+            }
+        });
+    }
+
+    // Show message
+    const msgBox = document.getElementById('messageBox');
+    if (deadlockProcs.length === 0) {
+        msgBox.textContent = 'No deadlock detected. Safe sequence: ' + safeSequence.join(' → ') + '.';
+        msgBox.style.backgroundColor = '#d6f5e0';
+        msgBox.style.color = '#236127';
+        msgBox.style.boxShadow = '0 0 18px #2ea834a3';
+    } else {
+        msgBox.textContent = 'Deadlock detected among process(es): ' + deadlockProcs.join(', ') + '. See red highlighted cycle.';
+        msgBox.style.backgroundColor = '#fef0f0';
+        msgBox.style.color = '#a32626';
+        msgBox.style.boxShadow = '0 0 22px #d929292b';
+    }
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>SQL Query Simulator</title>
+<style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 0;
+        background: linear-gradient(120deg, #1b233a 0%, #3e5aa7 90%);
+        min-height: 100vh;
+        color: #f0f4ff;
+    }
+    .container {
+        max-width: 1020px;
+        margin: 38px auto 50px auto;
+        background: #fefefe;
+        border-radius: 20px;
+        padding: 26px 18px 34px 18px;
+        box-shadow: 0 15px 38px #152b7a62, 0 3px 15px #16204d1b;
+        position: relative;
+        color: #2c3243;
+    }
+    .student-info {
+        position: absolute;
+        top: 20px;
+        right: 22px;
+        background: linear-gradient(128deg,#3b5da1dd 68%,#435886cc 100%);
+        color: #d4dffd;
+        border-radius: 14px;
+        padding: 20px 30px 17px 30px;
+        font-size: 1.07em;
+        font-weight: 600;
+        box-shadow: 0 3px 17px #082759a1;
+        text-align: right;
+        letter-spacing: 0.02em;
+        user-select: none;
+    }
+    h2 {
+        color: #4367ab;
+        margin-top: 0;
+        letter-spacing: 0.05em;
+        font-weight: 700;
+        text-shadow: 0 1px 6px #d9e4ff88;
+    }
+    label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 600;
+        font-size: 1.04em;
+        color: #3a4e7a;
+    }
+    textarea, input[type=text], select {
+        width: 100%;
+        font-size: 1.03em;
+        padding: 10px 14px;
+        border-radius: 11px;
+        border: 2px solid #7091d9;
+        outline: none;
+        box-shadow: inset 0 1px 8px #415eaeaa;
+        transition: border-color 0.21s ease;
+        font-family: monospace, monospace;
+        resize: vertical;
+        color: #233062;
+        background: #e6eafe;
+    }
+    textarea:focus, input[type=text]:focus, select:focus {
+        border-color: #4c5fcb;
+        box-shadow: inset 0 2px 14px #3551c132;
+        background: #f3f5ff;
+    }
+    button {
+        margin-top: 15px;
+        background: linear-gradient(120deg,#4a63da,#a2afff);
+        border: none;
+        color: #1a1f38;
+        font-size: 1.15em;
+        font-weight: 700;
+        border-radius: 15px;
+        padding: 13px 32px;
+        cursor: pointer;
+        box-shadow: 0 4px 20px #5d72db8a;
+        transition: background 0.3s ease;
+        user-select: none;
+    }
+    button:hover {
+        background: linear-gradient(120deg,#2a3cae,#7792eb);
+        box-shadow: 0 6px 22px #4e5ec999;
+    }
+    .output-container {
+        margin-top: 28px;
+        background: #eff6ff;
+        border-radius: 16px;
+        padding: 22px 28px 24px 28px;
+        box-shadow: inset 0 0 25px #a0b5ff90;
+        color: #18294f;
+        font-size: 1.02em;
+        line-height: 1.55em;
+        font-family: monospace, monospace;
+        max-height: 380px;
+        overflow: auto;
+        white-space: pre;
+        user-select: text;
+    }
+    .error {
+        color: #ad1e1e;
+        font-weight: 700;
+        margin-top: 12px;
+        font-size: 1.14em;
+        user-select: none;
+    }
+    table {
+        border-collapse: collapse;
+        margin-top: 9px;
+        width: 100%;
+        font-size: 0.94em;
+        color: #1a1c23;
+    }
+    th, td {
+        border: 1.2px solid #b3cbfe;
+        padding: 8px 13px;
+        text-align: center;
+    }
+    th {
+        background-color: #4a63da;
+        color: #e1e6ff;
+    }
+    td {
+        background-color: #dbe3fd;
+    }
+    .small-note {
+        font-size: 0.85em;
+        color: #4a4f61;
+        margin-top: 8px;
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <div class="student-info">
+        Sarthak Jain<br>
+        <span style="font-size:0.94em;">SAP ID: 590014936</span><br>
+        <span style="font-size:0.93em;">Batch-1</span>
+    </div>
+
+    <h2>SQL Query Simulator</h2>
+
+    <label for="tableData">Enter table data (JSON format, e.g. [{"id":1,"name":"A"},{"id":2,"name":"B"}]):</label>
+    <textarea id="tableData" rows="8" placeholder='[{"id":1,"name":"Alice","age":23},{"id":2,"name":"Bob","age":27},{"id":3,"name":"Carol","age":24}]'></textarea>
+
+    <label for="sqlQuery">Enter SQL query (supports SELECT, WHERE, ORDER BY, COUNT, SUM, AVG, GROUP BY, HAVING, UNION, INTERSECT, EXCEPT):</label>
+    <textarea id="sqlQuery" rows="5" placeholder="SELECT name, age FROM table WHERE age > 23 ORDER BY age DESC;"></textarea>
+
+    <button onclick="runSQL()">Run Query</button>
+
+    <div class="output-container" id="output">Output will appear here after running the query.</div>
+</div>
+
+<script>
+    function parseJSONInput(input) {
+        try {
+            return JSON.parse(input);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function runSQL() {
+        const outputEl = document.getElementById('output');
+        const dataInput = document.getElementById('tableData').value.trim();
+        const sqlInput = document.getElementById('sqlQuery').value.trim();
+
+        if (!dataInput) {
+            outputEl.innerHTML = "<span class='error'>Please enter valid JSON table data.</span>";
+            return;
+        }
+        if (!sqlInput) {
+            outputEl.innerHTML = "<span class='error'>Please enter a SQL query.</span>";
+            return;
+        }
+
+        const data = parseJSONInput(dataInput);
+        if (!data || !Array.isArray(data)) {
+            outputEl.innerHTML = "<span class='error'>Invalid JSON format for table data.</span>";
+            return;
+        }
+        if (data.length === 0) {
+            outputEl.innerHTML = "<span class='error'>Empty table data.</span>";
+            return;
+        }
+
+        try {
+            const tokens = sqlInput.toUpperCase().split(/[\s,]+/);
+            const selectIndex = sqlInput.toUpperCase().indexOf('SELECT ');
+            const fromIndex = sqlInput.toUpperCase().indexOf(' FROM ');
+            if(selectIndex === -1 || fromIndex === -1) throw "Missing SELECT or FROM clause";
+
+            let selectedFields = sqlInput.substring(selectIndex + 7, fromIndex).trim();
+            let fields = selectedFields === '*' ? null : selectedFields.split(/\s*,\s*/);
+
+            let whereMatch = sqlInput.match(/WHERE\s+(.+?)(ORDER BY|GROUP BY|HAVING|;|$)/i);
+            let whereClause = whereMatch ? whereMatch[1].trim() : null;
+
+            let orderByMatch = sqlInput.match(/ORDER BY\s+(\w+)(?:\s+(ASC|DESC))?/i);
+            let orderByField = orderByMatch ? orderByMatch[1] : null;
+            let orderByDirection = orderByMatch ? (orderByMatch[2] || 'ASC').toUpperCase() : 'ASC';
+
+            let groupByMatch = sqlInput.match(/GROUP BY\s+(\w+)/i);
+            let groupByField = groupByMatch ? groupByMatch[1] : null;
+
+            let havingMatch = sqlInput.match(/HAVING\s+(.+)/i);
+            let havingClause = havingMatch ? havingMatch[1] : null;
+
+            let filteredRows = whereClause ? data.filter(row => {
+                try {
+                    const expr = whereClause.replace(/(\w+)/g, match => {
+                        if (match in row) return JSON.stringify(row[match]);
+                        return match;
+                    });
+                    return eval(expr);
+                } catch {
+                    return false;
+                }
+            }) : data.slice();
+
+            if(groupByField) {
+                let groups = {};
+                filteredRows.forEach(row => {
+                    const key = row[groupByField];
+                    if(!groups[key]) groups[key] = [];
+                    groups[key].push(row);
+                });
+
+                const result = [];
+                for(let key in groups) {
+                    const groupRows = groups[key];
+                    const aggRow = {};
+                    aggRow[groupByField] = key;
+
+                    fields.forEach(f => {
+                        let fLow = f.toLowerCase();
+                        if(fLow.startsWith('count(')) {
+                            aggRow[f] = groupRows.length;
+                        } else if(fLow.startsWith('sum(')) {
+                            let col = f.substring(4, f.length - 1);
+                            aggRow[f] = groupRows.reduce((acc, r) => acc + Number(r[col]||0), 0);
+                        } else if(fLow.startsWith('avg(')) {
+                            let col = f.substring(4, f.length - 1);
+                            aggRow[f] = (groupRows.reduce((acc, r) => acc + Number(r[col]||0), 0) / groupRows.length).toFixed(2);
+                        } else {
+                            aggRow[f] = groupRows[0][f] !== undefined ? groupRows[0][f] : null;
+                        }
+                    });
+                    result.push(aggRow);
+                }
+
+                if(havingClause) {
+                    filteredRows = result.filter(row => {
+                        try {
+                            const expr = havingClause.replace(/(\w+)/g, match => {
+                                if(row.hasOwnProperty(match)) return JSON.stringify(row[match]);
+                                return match;
+                            });
+                            return eval(expr);
+                        } catch {
+                            return false;
+                        }
+                    });
+                } else {
+                    filteredRows = result;
+                }
+            } else {
+                filteredRows = filteredRows.map(row => {
+                    if(!fields) return row;
+                    let res = {};
+                    fields.forEach(f => {
+                        res[f] = row[f] !== undefined ? row[f] : null;
+                    });
+                    return res;
+                });
+            }
+
+            if(orderByField) {
+                filteredRows.sort((a, b) => {
+                    if(a[orderByField] === b[orderByField]) return 0;
+                    if(orderByDirection === 'DESC') {
+                        return a[orderByField] < b[orderByField] ? 1 : -1;
+                    } else {
+                        return a[orderByField] > b[orderByField] ? 1 : -1;
+                    }
+                });
+            }
+
+            if(filteredRows.length === 0) {
+                outputEl.textContent = 'No rows returned.';
+                return;
+            }
+
+            let keys = Object.keys(filteredRows[0]);
+            let html = '<table><thead><tr>';
+            keys.forEach(k => html += `<th>${k}</th>`);
+            html += '</tr></thead><tbody>';
+            filteredRows.forEach(row => {
+                html += '<tr>';
+                keys.forEach(k => html += `<td>${row[k] !== null && row[k] !== undefined ? row[k] : ''}</td>`);
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+
+            outputEl.innerHTML = html;
+        } catch(e) {
+            outputEl.innerHTML = `<span class="error">Error processing query: ${e}</span>`;
+        }
+    }
+</script>
+
+</body>
+</html>
